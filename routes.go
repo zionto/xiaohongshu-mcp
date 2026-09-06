@@ -42,8 +42,12 @@ func setupRoutes(appServer *AppServer) *gin.Engine {
 	protected.Any("/mcp", gin.WrapH(mcpHandler))
 	protected.Any("/mcp/*path", gin.WrapH(mcpHandler))
 
-	// API 路由组
+	// 频率限制状态
+	protected.GET("/ratelimit/status", appServer.rateLimiter.statusHandler)
+
+	// API 路由组，带账号级频率限制
 	api := protected.Group("/api/v1")
+	api.Use(appServer.rateLimiter.apiMiddleware())
 	{
 		api.GET("/login/status", appServer.checkLoginStatusHandler)
 		api.GET("/login/qrcode", appServer.getLoginQrcodeHandler)

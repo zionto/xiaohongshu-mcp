@@ -135,6 +135,9 @@ func InitMCPServer(appServer *AppServer) *mcp.Server {
 		nil,
 	)
 
+	// 账号级频率限制，只拦 tools/call
+	server.AddReceivingMiddleware(appServer.rateLimiter.mcpMiddleware)
+
 	// 注册所有工具
 	registerTools(server, appServer)
 
