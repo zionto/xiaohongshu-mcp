@@ -528,6 +528,24 @@ go run . -token=your-secret-token
 }
 ```
 
+## 1.3.1. 频率限制（防封号）
+
+服务内置账号级频率限制（`ratelimit.go`），在 humanize 页面延迟之上再加一层请求级保护：
+
+- 同一时刻只执行一个动作，动作间隔 6–12 秒随机
+- 读操作（搜索、详情、主页、通知）每小时 60 次、每天 400 次
+- 写操作默认允许，但各有上限：发布每天 3 次且间隔 30 分钟；评论/回复每天 20 次且间隔 90 秒；点赞/收藏每天 30 次且间隔 20 秒
+- 响应里出现验证码、操作频繁、账号异常等风控特征后，进入 30 分钟冷却，期间全部拒绝
+- 计数写入状态文件（默认 cookies 同目录的 `ratelimit-state.json`），重启不清零
+
+被拒的 MCP 调用返回 `isError: true` 的工具结果并说明原因，HTTP API 返回 `429`。
+`GET /ratelimit/status` 可查看当前计数。登录状态、二维码、删除 cookies 不受限。
+
+所有阈值可用环境变量覆盖：`XHS_ALLOW_WRITE`（设为 `0` 关闭全部写操作）、`XHS_READ_MIN_GAP`、`XHS_READ_JITTER`、
+`XHS_READ_PER_HOUR`、`XHS_READ_PER_DAY`、`XHS_PUBLISH_MIN_GAP`、`XHS_PUBLISH_PER_DAY`、`XHS_COMMENT_MIN_GAP`、
+`XHS_COMMENT_PER_DAY`、`XHS_REACT_MIN_GAP`、`XHS_REACT_PER_DAY`、`XHS_COOLDOWN_SEC`、`XHS_RATELIMIT_STATE`。
+收到拒绝时应当停止等待，而不是立刻重试。
+
 ## 1.4. 验证 MCP
 
 ```bash

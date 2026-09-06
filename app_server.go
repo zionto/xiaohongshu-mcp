@@ -20,6 +20,7 @@ type AppServer struct {
 	router             *gin.Engine
 	httpServer         *http.Server
 	authToken          string
+	rateLimiter        *RateLimiter
 }
 
 // NewAppServer 创建新的应用服务器实例
@@ -27,6 +28,7 @@ func NewAppServer(xiaohongshuService *XiaohongshuService, authToken string) *App
 	appServer := &AppServer{
 		xiaohongshuService: xiaohongshuService,
 		authToken:          authToken,
+		rateLimiter:        NewRateLimiter(rateLimitStatePath()),
 	}
 
 	// 初始化 MCP Server（需要在创建 appServer 之后，因为工具注册需要访问 appServer）
