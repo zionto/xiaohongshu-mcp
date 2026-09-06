@@ -358,6 +358,7 @@ GET /api/v1/feeds/search?keyword=搜索关键词
 
 **查询参数:**
 - `keyword` (string, required): 搜索关键词
+- `extract_image_text` (boolean, optional): 是否识别封面图文字（OCR），默认 false
 
 **请求方式二：POST（支持高级筛选）**
 ```
@@ -369,6 +370,7 @@ Content-Type: application/json
 ```json
 {
   "keyword": "搜索关键词",
+  "extract_image_text": false,
   "filters": {
     "sort_by": "综合",
     "note_type": "不限",
@@ -380,11 +382,14 @@ Content-Type: application/json
 ```
 
 **筛选参数说明:**
-- `sort_by` (string, optional): 排序依据，可选值：`综合`(默认) | `最新` | `最多点赞` | `最多评论` | `最多收藏`
+- `sort_by` (string, optional): 排序依据，可选值：`综合`(默认) | `最新` | `最多点赞` | `最多评论` | `最多收藏`。未指定时，返回结果按点赞数、收藏数倒序排列
 - `note_type` (string, optional): 笔记类型，可选值：`不限`(默认) | `视频` | `图文`
 - `publish_time` (string, optional): 发布时间，可选值：`不限`(默认) | `一天内` | `一周内` | `半年内`
 - `search_scope` (string, optional): 搜索范围，可选值：`不限`(默认) | `已看过` | `未看过` | `已关注`
 - `location` (string, optional): 位置距离，可选值：`不限`(默认) | `同城` | `附近`
+
+**OCR 参数说明:**
+- `extract_image_text` (boolean, optional): 为 true 时识别每条笔记封面图上的文字，结果放在 `noteCard.coverText`。macOS 使用系统 Vision 框架（需 Xcode Command Line Tools），其他系统需安装 `tesseract` 及 `chi_sim` 语言包，Docker 镜像已内置
 
 **响应**
 ```json
@@ -418,7 +423,8 @@ Content-Type: application/json
             "url": "https://example.com/cover.jpg",
             "urlDefault": "https://example.com/cover_default.jpg"
           },
-          "video": null
+          "video": null,
+          "coverText": "封面图上的文字（仅 extract_image_text=true 时返回）"
         },
         "index": 0
       }
@@ -450,6 +456,7 @@ Content-Type: application/json
   "feed_id": "64f1a2b3c4d5e6f7a8b9c0d1",
   "xsec_token": "security_token_here",
   "load_all_comments": false,
+  "extract_image_text": false,
   "comment_config": {
     "click_more_replies": true,
     "max_replies_threshold": 50,
@@ -468,6 +475,7 @@ Content-Type: application/json
   - `max_replies_threshold` (int): 回复数量阈值，超过这个数量的"更多"按钮将被跳过（0表示不跳过任何）
   - `max_comment_items` (int): 最大加载评论数（.parent-comment 数量），0表示加载所有
   - `scroll_speed` (string): 滚动速度等级，可选值：`slow`(慢速) | `normal`(正常) | `fast`(快速)
+- `extract_image_text` (boolean, optional): 是否识别笔记每张图片上的文字（OCR），默认 false。结果放在 `note.imageTexts`，与 `imageList` 一一对应
 
 **响应**
 ```json

@@ -55,7 +55,8 @@ type NoteCard struct {
 	User         User         `json:"user"`
 	InteractInfo InteractInfo `json:"interactInfo"`
 	Cover        Cover        `json:"cover"`
-	Video        *Video       `json:"video,omitempty"` // 视频内容，可能为空
+	Video        *Video       `json:"video,omitempty"`     // 视频内容，可能为空
+	CoverText    string       `json:"coverText,omitempty"` // 封面图 OCR 文字，仅 extract_image_text=true 时填充
 }
 
 // User 表示用户信息
@@ -126,6 +127,8 @@ type FeedDetail struct {
 	InteractInfo InteractInfo      `json:"interactInfo"`
 	ImageList    []DetailImageInfo `json:"imageList"`
 	Video        *VideoDetail      `json:"video,omitempty"` // 视频笔记才有，图文笔记为 nil
+	// ImageTexts 每张图片的 OCR 文字，与 ImageList 一一对应；仅 extract_image_text=true 时填充
+	ImageTexts []string `json:"imageTexts,omitempty"`
 }
 
 // VideoDetail 详情页的视频信息，按页面 note.video 原样映射，不替调用方挑档位。

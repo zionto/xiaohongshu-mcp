@@ -920,7 +920,8 @@ After successful connection, you can use the following MCP tools:
   - `visibility`: Visibility scope (optional), supports `公开可见` / public (default), `仅自己可见` / self-only, `仅互关好友可见` / mutual-followers-only
   - `products`: Product keyword list (optional), used to attach products for social commerce. Provide a product name or product ID; the system searches automatically and picks the first match. Requires the product feature to be enabled on your account. Example: [面膜, 防晒霜SPF50]
 - `list_feeds` - Get RedNote homepage recommendation list (no parameters)
-- `search_feeds` - Search RedNote content (required: keyword)
+- `search_feeds` - Search RedNote content (required: keyword). Without `sort_by`, results are sorted by likes then favorites, descending
+  - `extract_image_text`: OCR the cover image of each note (optional, default false); text is returned in `noteCard.coverText`
   - `filters`: Filter options (optional). Values must be passed exactly as the Chinese strings below — they match the labels on the RedNote filter panel.
     - `sort_by`: Sort by - `综合` / comprehensive (default) | `最新` / latest | `最多点赞` / most liked | `最多评论` / most comments | `最多收藏` / most saved
     - `note_type`: Note type - `不限` / any (default) | `视频` / video | `图文` / image-text
@@ -928,6 +929,7 @@ After successful connection, you can use the following MCP tools:
     - `search_scope`: Search scope - `不限` / any (default) | `已看过` / viewed | `未看过` / not viewed | `已关注` / followed
     - `location`: Location - `不限` / any (default) | `同城` / same city | `附近` / nearby
 - `get_feed_detail` - Get post details including interaction data and comments (required: feed_id, xsec_token)
+  - `extract_image_text`: OCR every image of the note (optional, default false); text is returned in `note.imageTexts`, aligned with `imageList`
   - `load_all_comments`: Whether to load all comments (optional), default false returns only first 10 top-level comments
   - `limit`: Limit number of top-level comments to load (optional), only effective when load_all_comments=true, default 20
   - `click_more_replies`: Whether to expand nested replies (optional), only effective when load_all_comments=true, default false

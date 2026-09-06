@@ -40,8 +40,9 @@ type PublishVideoArgs struct {
 
 // SearchFeedsArgs 搜索内容的参数
 type SearchFeedsArgs struct {
-	Keyword string       `json:"keyword" jsonschema:"搜索关键词"`
-	Filters FilterOption `json:"filters,omitempty" jsonschema:"筛选选项"`
+	Keyword          string       `json:"keyword" jsonschema:"搜索关键词"`
+	Filters          FilterOption `json:"filters,omitempty" jsonschema:"筛选选项"`
+	ExtractImageText bool         `json:"extract_image_text,omitempty" jsonschema:"是否识别每条笔记封面图上的文字（OCR），结果放在 noteCard.coverText。默认 false"`
 }
 
 // FilterOption 筛选选项结构体
@@ -62,6 +63,7 @@ type FeedDetailArgs struct {
 	ClickMoreReplies bool   `json:"click_more_replies,omitempty" jsonschema:"【仅当load_all_comments为true时生效】是否展开二级回复。true展开子评论，false不展开（默认）"`
 	ReplyLimit       int    `json:"reply_limit,omitempty" jsonschema:"【仅当click_more_replies为true时生效】跳过回复数过多的评论。例如10表示跳过超过10条回复的，默认10"`
 	ScrollSpeed      string `json:"scroll_speed,omitempty" jsonschema:"【仅当load_all_comments为true时生效】滚动速度slow慢速、normal正常、fast快速"`
+	ExtractImageText bool   `json:"extract_image_text,omitempty" jsonschema:"是否识别笔记每张图片上的文字（OCR），结果放在 note.imageTexts，与 imageList 一一对应。默认 false"`
 }
 
 // UserProfileArgs 获取用户主页的参数
@@ -282,7 +284,7 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "search_feeds",
-			Description: "搜索小红书内容（需要已登录）",
+			Description: "搜索小红书内容（需要已登录）。未指定 sort_by 时结果按点赞数、收藏数倒序返回；可选 extract_image_text 识别封面图文字",
 			Annotations: &mcp.ToolAnnotations{
 				Title:        "Search Feeds",
 				ReadOnlyHint: true,
@@ -298,7 +300,7 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 	mcp.AddTool(server,
 		&mcp.Tool{
 			Name:        "get_feed_detail",
-			Description: "获取小红书笔记详情，返回笔记内容、图片、作者信息、互动数据（点赞/收藏/分享数）及评论列表。视频笔记额外返回 video 字段，含各编码档位的视频直链与字幕地址（均带签名、有时效）。默认返回前10条一级评论，如需更多评论请设置load_all_comments=true",
+			Description: "获取小红书笔记详情，返回笔记内容、图片、作者信息、互动数据（点赞/收藏/分享数）及评论列表。视频笔记额外返回 video 字段，含各编码档位的视频直链与字幕地址（均带签名、有时效）。默认返回前10条一级评论，如需更多评论请设置load_all_comments=true。设置 extract_image_text=true 可识别图片中的文字（OCR）",
 			Annotations: &mcp.ToolAnnotations{
 				Title:        "Get Feed Detail",
 				ReadOnlyHint: true,
@@ -306,9 +308,10 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		},
 		withPanicRecovery("get_feed_detail", func(ctx context.Context, req *mcp.CallToolRequest, args FeedDetailArgs) (*mcp.CallToolResult, any, error) {
 			argsMap := map[string]interface{}{
-				"feed_id":           args.FeedID,
-				"xsec_token":        args.XsecToken,
-				"load_all_comments": args.LoadAllComments,
+				"feed_id":            args.FeedID,
+				"xsec_token":         args.XsecToken,
+				"load_all_comments":  args.LoadAllComments,
+				"extract_image_text": args.ExtractImageText,
 			}
 
 			// 只有当 load_all_comments=true 时，才处理其他参数
