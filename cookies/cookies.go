@@ -12,9 +12,11 @@ import (
 // sessionFile 是 v2 的文件结构。v1 是一个裸 cookie 数组，没有外层对象。
 // cookies 用 RawMessage 原样透传，不解析不重组，避免往返时字段走样。
 type sessionFile struct {
-	Version int             `json:"version"`
-	Seed    int             `json:"seed,omitempty"`
-	SavedAt string          `json:"saved_at,omitempty"`
+	Version int    `json:"version"`
+	Seed    int    `json:"seed,omitempty"`
+	SavedAt string `json:"saved_at,omitempty"`
+	// Host 登录成功时页面实际所在的主机（如 www.rednote.com）。空表示默认。
+	Host    string          `json:"host,omitempty"`
 	Cookies json.RawMessage `json:"cookies"`
 }
 
@@ -29,6 +31,10 @@ type Cookier interface {
 	LoadSeed() int
 	// SaveSeed 写入 seed，保留文件中已有的 cookies。
 	SaveSeed(seed int) error
+	// LoadHost 读取登录时记录的网页主机；未记录、老格式或文件损坏返回空。
+	LoadHost() string
+	// SaveHost 写入网页主机，保留文件中已有的 cookies 和 seed。
+	SaveHost(host string) error
 }
 
 type localCookie struct {
@@ -76,22 +82,45 @@ func (c *localCookie) LoadSeed() int {
 	return f.Seed
 }
 
-// SaveCookies 保存 cookies 到文件中，保留文件里已有的 seed。
-func (c *localCookie) SaveCookies(data []byte) error {
-	return c.write(data, c.LoadSeed())
+// LoadHost 读取登录时记录的网页主机。老格式（裸数组）没有这个值，返回空。
+func (c *localCookie) LoadHost() string {
+	data, err := os.ReadFile(c.path)
+	if err != nil {
+		return ""
+	}
+
+	var f sessionFile
+	if err := json.Unmarshal(data, &f); err != nil {
+		return ""
+	}
+	return f.Host
 }
 
-// SaveSeed 写入 seed，保留文件里已有的 cookies。
+// SaveCookies 保存 cookies 到文件中，保留文件里已有的 seed 和 host。
+func (c *localCookie) SaveCookies(data []byte) error {
+	return c.write(data, c.LoadSeed(), c.LoadHost())
+}
+
+// SaveSeed 写入 seed，保留文件里已有的 cookies 和 host。
 func (c *localCookie) SaveSeed(seed int) error {
 	cks, err := c.LoadCookies()
 	if err != nil {
 		cks = nil // 文件还不存在：先把 seed 落下来，cookies 之后再补
 	}
-	return c.write(cks, seed)
+	return c.write(cks, seed, c.LoadHost())
+}
+
+// SaveHost 写入网页主机，保留文件里已有的 cookies 和 seed。
+func (c *localCookie) SaveHost(host string) error {
+	cks, err := c.LoadCookies()
+	if err != nil {
+		cks = nil
+	}
+	return c.write(cks, c.LoadSeed(), host)
 }
 
 // write 以 v2 格式落盘。cookies 用 RawMessage 原样嵌入，不经过结构体往返。
-func (c *localCookie) write(cks []byte, seed int) error {
+func (c *localCookie) write(cks []byte, seed int, host string) error {
 	if len(cks) == 0 {
 		cks = []byte("[]")
 	}
@@ -100,6 +129,7 @@ func (c *localCookie) write(cks []byte, seed int) error {
 		Version: 2,
 		Seed:    seed,
 		SavedAt: time.Now().Format(time.RFC3339),
+		Host:    host,
 		Cookies: json.RawMessage(cks),
 	}, "", "  ")
 	if err != nil {

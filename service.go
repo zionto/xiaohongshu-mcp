@@ -192,6 +192,16 @@ func (s *XiaohongshuService) waitScanInBackground(
 				logrus.Errorf("扫码成功但保存 cookies 失败，会话 #%d: %v", seq, err)
 				return
 			}
+			// 扫码后页面可能已被带到另一个域（海外账号 → www.rednote.com），
+			// 会话 cookie 只在那个域有效，记下来让之后的页面都走它。
+			if host := loginAction.CurrentHost(); host != "" && host != xiaohongshu.WebHost() {
+				xiaohongshu.SetWebHost(host)
+				store := cookies.NewLoadCookie(cookies.GetCookiesFilePath())
+				if err := store.SaveHost(host); err != nil {
+					logrus.Warnf("记录登录主机 %s 失败: %v", host, err)
+				}
+				logrus.Infof("登录会话落在 %s，后续页面改用该主机", host)
+			}
 			logrus.Infof("扫码登录成功，cookies 已保存，会话 #%d", seq)
 			return
 		}

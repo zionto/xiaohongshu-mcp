@@ -3,6 +3,7 @@ package xiaohongshu
 import (
 	"context"
 	"encoding/json"
+	"net/url"
 	"time"
 
 	"github.com/go-rod/rod"
@@ -20,7 +21,7 @@ func NewLogin(page *rod.Page) *LoginAction {
 func (a *LoginAction) CheckLoginStatus(ctx context.Context) (bool, error) {
 	// 加超时保护：只是查登录态的快速检查，不应无限挂（登录扫码的等待在 Login/WaitForLogin 里）
 	pp := a.page.Context(ctx).Timeout(30 * time.Second)
-	pp.MustNavigate("https://www.xiaohongshu.com/explore").MustWaitLoad()
+	pp.MustNavigate(WebURL("/explore")).MustWaitLoad()
 
 	time.Sleep(1 * time.Second)
 
@@ -74,7 +75,7 @@ func (a *LoginAction) Login(ctx context.Context) error {
 	pp := a.page.Context(ctx)
 
 	// 导航到小红书首页，这会触发二维码弹窗
-	pp.MustNavigate("https://www.xiaohongshu.com/explore").MustWaitLoad()
+	pp.MustNavigate(WebURL("/explore")).MustWaitLoad()
 
 	time.Sleep(2 * time.Second)
 
@@ -91,7 +92,7 @@ func (a *LoginAction) FetchQrcodeImage(ctx context.Context) (string, bool, error
 	pp := a.page.Context(ctx)
 
 	// 导航到小红书首页，这会触发二维码弹窗
-	pp.MustNavigate("https://www.xiaohongshu.com/explore").MustWaitLoad()
+	pp.MustNavigate(WebURL("/explore")).MustWaitLoad()
 
 	time.Sleep(2 * time.Second)
 
@@ -108,6 +109,19 @@ func (a *LoginAction) FetchQrcodeImage(ctx context.Context) (string, bool, error
 	}
 
 	return *src, false, nil
+}
+
+// CurrentHost 页面当前所在主机。读不到返回空。
+func (a *LoginAction) CurrentHost() string {
+	info, err := a.page.Info()
+	if err != nil || info == nil {
+		return ""
+	}
+	u, err := url.Parse(info.URL)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }
 
 func (a *LoginAction) WaitForLogin(ctx context.Context) bool {
