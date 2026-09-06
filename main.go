@@ -8,6 +8,7 @@ import (
 	"github.com/xpzouying/xiaohongshu-mcp/browser"
 	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"github.com/xpzouying/xiaohongshu-mcp/cookies"
+	"github.com/xpzouying/xiaohongshu-mcp/xiaohongshu"
 )
 
 // version 构建版本号，发布时通过 -ldflags "-X main.version=vX.Y.Z" 注入。
@@ -42,6 +43,12 @@ func main() {
 	configs.SetFingerprintSeed(configs.ResolveFingerprintSeed(
 		cookies.NewLoadCookie(cookies.GetCookiesFilePath())))
 	configs.SetProxy(configs.ProxyFromEnv())
+	// 网页主机：环境变量 > 上次登录记录的 > 默认 www.xiaohongshu.com。
+	store := cookies.NewLoadCookie(cookies.GetCookiesFilePath())
+	if host := configs.ResolveWebHost(store); host != "" {
+		xiaohongshu.SetWebHost(host)
+	}
+	logrus.Infof("web host: %s", xiaohongshu.WebHost())
 
 	// 初始化服务
 	xiaohongshuService := NewXiaohongshuService()
