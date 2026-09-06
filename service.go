@@ -627,6 +627,21 @@ func (s *XiaohongshuService) ReplyNotification(ctx context.Context, commentID, c
 	return xiaohongshu.NewNotificationAction(page).Reply(ctx, commentID, content)
 }
 
+// SendPrivateMessage 给指定用户发一条私信
+func (s *XiaohongshuService) SendPrivateMessage(ctx context.Context, userID, xsecToken, content string) (*SendPrivateMessageResponse, error) {
+	b := newBrowser()
+	defer b.Close()
+
+	page := b.NewPage()
+	defer page.Close()
+
+	if err := xiaohongshu.NewPrivateMessageAction(page).SendPrivateMessage(ctx, userID, xsecToken, content); err != nil {
+		return nil, err
+	}
+
+	return &SendPrivateMessageResponse{UserID: userID, Success: true, Message: "私信发送成功"}, nil
+}
+
 func newBrowser() *headless_browser.Browser {
 	return browser.NewBrowser(configs.IsHeadless(),
 		browser.WithFingerprintSeed(configs.FingerprintSeed()),

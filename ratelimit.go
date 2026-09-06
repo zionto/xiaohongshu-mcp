@@ -26,7 +26,7 @@ import (
 //
 //   - 同一时刻只执行一个动作，动作之间留随机间隔
 //   - 读操作按小时 / 天计数封顶
-//   - 写操作（发布、评论、点赞收藏）各有更长的间隔和更小的日上限
+//   - 写操作（发布、评论、点赞收藏、私信）各有更长的间隔和更小的日上限
 //   - 响应里出现风控特征（验证码、操作频繁等）后进入冷却期，期间全部拒绝
 //
 // 计数写入 JSON 状态文件，重启不清零。所有阈值可用 XHS_* 环境变量覆盖。
@@ -40,11 +40,12 @@ const (
 	classPublish actionClass = "publish"
 	classComment actionClass = "comment"
 	classReact   actionClass = "react"
+	classMessage actionClass = "message" // 私信：风控最敏感，额度最低
 )
 
 // isWrite 是否为写类动作
 func (c actionClass) isWrite() bool {
-	return c == classPublish || c == classComment || c == classReact
+	return c == classPublish || c == classComment || c == classReact || c == classMessage
 }
 
 // toolClasses MCP 工具名 -> 类别，未登记的工具按 read 处理
@@ -67,6 +68,7 @@ var toolClasses = map[string]actionClass{
 	"like_feed":             classReact,
 	"favorite_feed":         classReact,
 	"like_notification":     classReact,
+	"send_private_message":  classMessage,
 }
 
 // apiClasses "METHOD path" -> 类别，未登记的 /api/v1 路由按 read 处理
@@ -91,6 +93,7 @@ var apiClasses = map[string]actionClass{
 	"POST /api/v1/feeds/like":          classReact,
 	"POST /api/v1/feeds/favorite":      classReact,
 	"POST /api/v1/notifications/like":  classReact,
+	"POST /api/v1/user/message":        classMessage,
 }
 
 // riskMarkers 响应中出现即视为风控信号（小写匹配）
@@ -112,6 +115,8 @@ type rateLimits struct {
 	CommentPerDay int     `json:"comment_per_day"`
 	ReactMinGap   float64 `json:"react_min_gap"`
 	ReactPerDay   int     `json:"react_per_day"`
+	MessageMinGap float64 `json:"message_min_gap"`
+	MessagePerDay int     `json:"message_per_day"`
 	CooldownSec   float64 `json:"cooldown_sec"`
 }
 
@@ -129,6 +134,8 @@ func loadRateLimits() rateLimits {
 		CommentPerDay: 20,
 		ReactMinGap:   20,
 		ReactPerDay:   30,
+		MessageMinGap: 600,
+		MessagePerDay: 5,
 		CooldownSec:   1800,
 	}
 	envFloat := func(name string, dst *float64) {
@@ -154,6 +161,8 @@ func loadRateLimits() rateLimits {
 	envInt("COMMENT_PER_DAY", &l.CommentPerDay)
 	envFloat("REACT_MIN_GAP", &l.ReactMinGap)
 	envInt("REACT_PER_DAY", &l.ReactPerDay)
+	envFloat("MESSAGE_MIN_GAP", &l.MessageMinGap)
+	envInt("MESSAGE_PER_DAY", &l.MessagePerDay)
 	envFloat("COOLDOWN_SEC", &l.CooldownSec)
 	return l
 }
@@ -165,6 +174,8 @@ func (l rateLimits) writeLimits(cls actionClass) (gap float64, perDay int) {
 		return l.PublishMinGap, l.PublishPerDay
 	case classComment:
 		return l.CommentMinGap, l.CommentPerDay
+	case classMessage:
+		return l.MessageMinGap, l.MessagePerDay
 	default:
 		return l.ReactMinGap, l.ReactPerDay
 	}
@@ -355,6 +366,7 @@ func (r *RateLimiter) Summary() map[string]any {
 		"publish_last_day":       len(r.recent(classPublish, 86400)),
 		"comment_last_day":       len(r.recent(classComment, 86400)),
 		"react_last_day":         len(r.recent(classReact, 86400)),
+		"message_last_day":       len(r.recent(classMessage, 86400)),
 		"cooldown_remaining_sec": cooldown,
 		"limits":                 r.limits,
 	}

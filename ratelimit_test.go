@@ -58,6 +58,37 @@ func TestRateLimiterWriteGapAndDisable(t *testing.T) {
 	assert.Contains(t, reason, "disabled")
 }
 
+func TestRateLimiterMessageClass(t *testing.T) {
+	// 私信登记为写类，MCP 工具和 HTTP 路由都映射到 message
+	assert.True(t, classMessage.isWrite())
+	assert.Equal(t, classMessage, toolClasses["send_private_message"])
+	assert.Equal(t, classMessage, apiClasses["POST /api/v1/user/message"])
+
+	// 默认额度要明显低于评论
+	l := loadRateLimits()
+	assert.Greater(t, l.MessageMinGap, l.CommentMinGap)
+	assert.Less(t, l.MessagePerDay, l.CommentPerDay)
+
+	// 日上限 1 次：第二次直接拒绝，且不受 XHS_ALLOW_WRITE 之外的类别影响
+	t.Setenv("XHS_MESSAGE_PER_DAY", "1")
+	r := fastLimiter(t)
+	done, reason := r.Acquire(context.Background(), classMessage)
+	require.Empty(t, reason)
+	done("ok")
+	_, reason = r.Acquire(context.Background(), classMessage)
+	assert.Contains(t, reason, "daily message cap reached")
+	assert.Equal(t, 1, r.Summary()["message_last_day"])
+
+	// 间隔未到也拒绝
+	t.Setenv("XHS_MESSAGE_PER_DAY", "5")
+	r = fastLimiter(t)
+	done, reason = r.Acquire(context.Background(), classMessage)
+	require.Empty(t, reason)
+	done("ok")
+	_, reason = r.Acquire(context.Background(), classMessage)
+	assert.Contains(t, reason, "message gap not elapsed")
+}
+
 func TestRateLimiterRiskMarkerTripsCooldown(t *testing.T) {
 	r := fastLimiter(t)
 	done, reason := r.Acquire(context.Background(), classRead)

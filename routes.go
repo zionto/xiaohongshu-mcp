@@ -69,6 +69,9 @@ func setupRoutes(appServer *AppServer) *gin.Engine {
 		api.POST("/notifications/list", appServer.listNotificationsHandler)
 		api.POST("/notifications/reply", appServer.replyNotificationHandler)
 		api.POST("/notifications/like", appServer.likeNotificationHandler)
+
+		// 私信
+		api.POST("/user/message", appServer.sendPrivateMessageHandler)
 	}
 
 	return router
