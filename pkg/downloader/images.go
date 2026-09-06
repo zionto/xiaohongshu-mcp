@@ -19,6 +19,9 @@ import (
 type ImageDownloader struct {
 	savePath   string
 	httpClient *http.Client
+	// Referer 非空时覆盖默认的「图片所在域名」。
+	// 小红书 CDN 会拒绝以自身域名为 Referer 的请求（403），需改用站点地址。
+	Referer string
 }
 
 // NewImageDownloader 创建图片下载器
@@ -53,10 +56,15 @@ func (d *ImageDownloader) DownloadImage(imageURL string) (string, error) {
 	// 设置 User-Agent，模拟浏览器请求
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-	// 设置 Referer，使用图片 URL 的域名
-	parsedURL, _ := url.Parse(imageURL)
-	if parsedURL != nil {
-		req.Header.Set("Referer", fmt.Sprintf("%s://%s/", parsedURL.Scheme, parsedURL.Host))
+	// 设置 Referer，默认使用图片 URL 的域名
+	referer := d.Referer
+	if referer == "" {
+		if parsedURL, _ := url.Parse(imageURL); parsedURL != nil {
+			referer = fmt.Sprintf("%s://%s/", parsedURL.Scheme, parsedURL.Host)
+		}
+	}
+	if referer != "" {
+		req.Header.Set("Referer", referer)
 	}
 
 	// 下载图片数据

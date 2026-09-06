@@ -138,6 +138,7 @@ func (s *AppServer) listFeedsHandler(c *gin.Context) {
 func (s *AppServer) searchFeedsHandler(c *gin.Context) {
 	var keyword string
 	var filters xiaohongshu.FilterOption
+	var extractImageText bool
 
 	switch c.Request.Method {
 	case http.MethodPost:
@@ -150,8 +151,10 @@ func (s *AppServer) searchFeedsHandler(c *gin.Context) {
 		}
 		keyword = searchReq.Keyword
 		filters = searchReq.Filters
+		extractImageText = searchReq.ExtractImageText
 	default:
 		keyword = c.Query("keyword")
+		extractImageText, _ = strconv.ParseBool(c.Query("extract_image_text"))
 	}
 
 	if keyword == "" {
@@ -160,7 +163,7 @@ func (s *AppServer) searchFeedsHandler(c *gin.Context) {
 		return
 	}
 
-	result, err := s.xiaohongshuService.SearchFeeds(c.Request.Context(), keyword, filters)
+	result, err := s.xiaohongshuService.SearchFeeds(c.Request.Context(), keyword, extractImageText, filters)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "SEARCH_FEEDS_FAILED",
 			"搜索Feeds失败", err.Error())
@@ -179,20 +182,17 @@ func (s *AppServer) getFeedDetailHandler(c *gin.Context) {
 		return
 	}
 
-	var result *FeedDetailResponse
-	var err error
-
+	config := xiaohongshu.DefaultCommentLoadConfig()
 	if req.CommentConfig != nil {
-		config := xiaohongshu.CommentLoadConfig{
+		config = xiaohongshu.CommentLoadConfig{
 			ClickMoreReplies:    req.CommentConfig.ClickMoreReplies,
 			MaxRepliesThreshold: req.CommentConfig.MaxRepliesThreshold,
 			MaxCommentItems:     req.CommentConfig.MaxCommentItems,
 			ScrollSpeed:         req.CommentConfig.ScrollSpeed,
 		}
-		result, err = s.xiaohongshuService.GetFeedDetailWithConfig(c.Request.Context(), req.FeedID, req.XsecToken, req.LoadAllComments, config)
-	} else {
-		result, err = s.xiaohongshuService.GetFeedDetail(c.Request.Context(), req.FeedID, req.XsecToken, req.LoadAllComments)
 	}
+
+	result, err := s.xiaohongshuService.GetFeedDetailWithConfig(c.Request.Context(), req.FeedID, req.XsecToken, req.LoadAllComments, config, req.ExtractImageText)
 
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, "GET_FEED_DETAIL_FAILED",

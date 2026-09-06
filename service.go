@@ -14,6 +14,7 @@ import (
 	"github.com/xpzouying/xiaohongshu-mcp/configs"
 	"github.com/xpzouying/xiaohongshu-mcp/cookies"
 	"github.com/xpzouying/xiaohongshu-mcp/pkg/downloader"
+	"github.com/xpzouying/xiaohongshu-mcp/pkg/ocr"
 	"github.com/xpzouying/xiaohongshu-mcp/pkg/xhsutil"
 	"github.com/xpzouying/xiaohongshu-mcp/xiaohongshu"
 )
@@ -399,7 +400,14 @@ func (s *XiaohongshuService) ListFeeds(ctx context.Context) (*FeedsListResponse,
 	return response, nil
 }
 
-func (s *XiaohongshuService) SearchFeeds(ctx context.Context, keyword string, filters ...xiaohongshu.FilterOption) (*FeedsListResponse, error) {
+// SearchFeeds 搜索笔记。extractImageText 为 true 时额外识别每条笔记封面图上的文字。
+func (s *XiaohongshuService) SearchFeeds(ctx context.Context, keyword string, extractImageText bool, filters ...xiaohongshu.FilterOption) (*FeedsListResponse, error) {
+	if extractImageText {
+		if err := ocr.Available(); err != nil {
+			return nil, err
+		}
+	}
+
 	b := newBrowser()
 	defer b.Close()
 
@@ -413,6 +421,23 @@ func (s *XiaohongshuService) SearchFeeds(ctx context.Context, keyword string, fi
 		return nil, err
 	}
 
+	if extractImageText {
+		urls := make([]string, len(feeds))
+		for i, f := range feeds {
+			urls[i] = f.NoteCard.Cover.URLDefault
+			if urls[i] == "" {
+				urls[i] = f.NoteCard.Cover.URL
+			}
+		}
+		texts, err := extractImageTexts(ctx, urls)
+		if err != nil {
+			return nil, err
+		}
+		for i := range feeds {
+			feeds[i].NoteCard.CoverText = texts[i]
+		}
+	}
+
 	response := &FeedsListResponse{
 		Feeds: feeds,
 		Count: len(feeds),
@@ -423,11 +448,17 @@ func (s *XiaohongshuService) SearchFeeds(ctx context.Context, keyword string, fi
 
 // GetFeedDetail 获取Feed详情
 func (s *XiaohongshuService) GetFeedDetail(ctx context.Context, feedID, xsecToken string, loadAllComments bool) (*FeedDetailResponse, error) {
-	return s.GetFeedDetailWithConfig(ctx, feedID, xsecToken, loadAllComments, xiaohongshu.DefaultCommentLoadConfig())
+	return s.GetFeedDetailWithConfig(ctx, feedID, xsecToken, loadAllComments, xiaohongshu.DefaultCommentLoadConfig(), false)
 }
 
-// GetFeedDetailWithConfig 使用配置获取Feed详情
-func (s *XiaohongshuService) GetFeedDetailWithConfig(ctx context.Context, feedID, xsecToken string, loadAllComments bool, config xiaohongshu.CommentLoadConfig) (*FeedDetailResponse, error) {
+// GetFeedDetailWithConfig 使用配置获取Feed详情。extractImageText 为 true 时识别笔记每张图片上的文字。
+func (s *XiaohongshuService) GetFeedDetailWithConfig(ctx context.Context, feedID, xsecToken string, loadAllComments bool, config xiaohongshu.CommentLoadConfig, extractImageText bool) (*FeedDetailResponse, error) {
+	if extractImageText {
+		if err := ocr.Available(); err != nil {
+			return nil, err
+		}
+	}
+
 	b := newBrowser()
 	defer b.Close()
 
@@ -439,6 +470,18 @@ func (s *XiaohongshuService) GetFeedDetailWithConfig(ctx context.Context, feedID
 	result, err := action.GetFeedDetailWithConfig(ctx, feedID, xsecToken, loadAllComments, config)
 	if err != nil {
 		return nil, err
+	}
+
+	if extractImageText {
+		urls := make([]string, len(result.Note.ImageList))
+		for i, img := range result.Note.ImageList {
+			urls[i] = img.URLDefault
+		}
+		texts, err := extractImageTexts(ctx, urls)
+		if err != nil {
+			return nil, err
+		}
+		result.Note.ImageTexts = texts
 	}
 
 	response := &FeedDetailResponse{
@@ -701,4 +744,41 @@ func (s *XiaohongshuService) GetMyProfile(ctx context.Context, tab string) (*Use
 	}
 
 	return response, nil
+}
+
+// extractImageTexts 下载图片并识别文字，返回与 urls 等长的切片。
+// 单张下载失败只记日志、结果留空，不让整个请求失败；OCR 后端出错才返回 error。
+// 下载的临时文件用完即删。
+func extractImageTexts(ctx context.Context, urls []string) ([]string, error) {
+	texts := make([]string, len(urls))
+	if len(urls) == 0 {
+		return texts, nil
+	}
+
+	dl := downloader.NewImageDownloader(configs.GetImagesPath())
+	dl.Referer = xiaohongshu.WebURL("/")
+	var paths []string
+	var indexes []int
+	for i, u := range urls {
+		if u == "" {
+			continue
+		}
+		p, err := dl.DownloadImage(u)
+		if err != nil {
+			logrus.Warnf("下载图片失败，跳过 OCR: %s: %v", u, err)
+			continue
+		}
+		defer os.Remove(p)
+		paths = append(paths, p)
+		indexes = append(indexes, i)
+	}
+
+	results, err := ocr.Recognize(ctx, paths)
+	if err != nil {
+		return nil, err
+	}
+	for k, i := range indexes {
+		texts[i] = results[k]
+	}
+	return texts, nil
 }

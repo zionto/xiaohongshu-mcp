@@ -52,11 +52,15 @@ type FeedDetailRequest struct {
 	XsecToken       string             `json:"xsec_token" binding:"required"`
 	LoadAllComments bool               `json:"load_all_comments,omitempty"`
 	CommentConfig   *CommentLoadConfig `json:"comment_config,omitempty"`
+	// ExtractImageText 是否识别图片文字（OCR）
+	ExtractImageText bool `json:"extract_image_text,omitempty"`
 }
 
 type SearchFeedsRequest struct {
 	Keyword string                   `json:"keyword" binding:"required"`
 	Filters xiaohongshu.FilterOption `json:"filters,omitempty"`
+	// ExtractImageText 是否识别封面图文字（OCR）
+	ExtractImageText bool `json:"extract_image_text,omitempty"`
 }
 
 // FeedDetailResponse Feed详情响应

@@ -162,7 +162,22 @@ func (s *SearchAction) Search(ctx context.Context, keyword string, filters ...Fi
 		return nil, fmt.Errorf("failed to unmarshal feeds: %w", err)
 	}
 
-	return onlyNotes(feeds), nil
+	notes := onlyNotes(feeds)
+	// 未指定排序依据时按点赞数、收藏数倒序；指定了（比如「最新」）就尊重站点顺序
+	if !hasSortFilter(pending) {
+		sortByEngagement(notes)
+	}
+	return notes, nil
+}
+
+// hasSortFilter 入参里有没有显式指定「排序依据」。
+func hasSortFilter(pending []pendingFilter) bool {
+	for _, pf := range pending {
+		if pf.group == filterGroups[0].label {
+			return true
+		}
+	}
+	return false
 }
 
 // feedIDsJS 读当前结果集的 id 列表，用来判断数据有没有换一批。
