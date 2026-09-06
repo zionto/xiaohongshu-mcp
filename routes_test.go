@@ -86,7 +86,7 @@ func TestNotificationToolsRegistered(t *testing.T) {
 		names[tool.Name] = true
 	}
 
-	for _, want := range []string{"get_unread_count", "list_notifications", "reply_notification", "like_notification"} {
+	for _, want := range []string{"get_unread_count", "list_notifications", "reply_notification", "like_notification", "send_private_message"} {
 		assert.True(t, names[want], "工具 %s 应已注册", want)
 	}
 }
@@ -110,6 +110,7 @@ func TestNotificationRoutesRegistered(t *testing.T) {
 		"POST /api/v1/notifications/list",
 		"POST /api/v1/notifications/reply",
 		"POST /api/v1/notifications/like",
+		"POST /api/v1/user/message",
 	} {
 		assert.True(t, registered[want], "路由 %s 应已注册", want)
 	}

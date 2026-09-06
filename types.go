@@ -137,6 +137,20 @@ type ReplyNotificationRequest struct {
 	Content   string `json:"content" binding:"required"`
 }
 
+// SendPrivateMessageRequest 发私信请求
+type SendPrivateMessageRequest struct {
+	UserID    string `json:"user_id" binding:"required"`
+	XsecToken string `json:"xsec_token" binding:"required"`
+	Content   string `json:"content" binding:"required"`
+}
+
+// SendPrivateMessageResponse 发私信响应
+type SendPrivateMessageResponse struct {
+	UserID  string `json:"user_id"`
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 // LikeNotificationRequest 通知点赞请求
 type LikeNotificationRequest struct {
 	CommentID string `json:"comment_id" binding:"required"`

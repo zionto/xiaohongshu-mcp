@@ -802,6 +802,28 @@ func (s *AppServer) handleReplyNotification(ctx context.Context, commentID, cont
 	return marshalMCPResult(result, "回复")
 }
 
+// handleSendPrivateMessage 处理发私信
+func (s *AppServer) handleSendPrivateMessage(ctx context.Context, userID, xsecToken, content string) *MCPToolResult {
+	logrus.Infof("MCP: 发私信 user=%s", userID)
+
+	if userID == "" || xsecToken == "" || content == "" {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "user_id、xsec_token、content 均不能为空"}},
+			IsError: true,
+		}
+	}
+
+	result, err := s.xiaohongshuService.SendPrivateMessage(ctx, userID, xsecToken, content)
+	if err != nil {
+		return &MCPToolResult{
+			Content: []MCPContent{{Type: "text", Text: "发送私信失败: " + err.Error()}},
+			IsError: true,
+		}
+	}
+
+	return marshalMCPResult(result, "发送私信")
+}
+
 // marshalMCPResult 把结果序列化成 MCP 文本内容。
 func marshalMCPResult(result any, action string) *MCPToolResult {
 	jsonData, err := json.MarshalIndent(result, "", "  ")

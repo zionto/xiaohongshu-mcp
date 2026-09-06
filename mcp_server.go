@@ -124,6 +124,13 @@ type ReplyNotificationArgs struct {
 	Content   string `json:"content" jsonschema:"回复内容"`
 }
 
+// SendPrivateMessageArgs 发私信参数
+type SendPrivateMessageArgs struct {
+	UserID    string `json:"user_id" jsonschema:"目标用户ID"`
+	XsecToken string `json:"xsec_token" jsonschema:"用户主页的 xsec_token，从 search_feeds / get_feed_detail 的作者信息获取"`
+	Content   string `json:"content" jsonschema:"私信内容"`
+}
+
 // InitMCPServer 初始化 MCP Server
 func InitMCPServer(appServer *AppServer) *mcp.Server {
 	// 创建 MCP Server
@@ -551,7 +558,23 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
 		}),
 	)
 
-	logrus.Infof("Registered %d MCP tools", 18)
+	// 工具 19: 发私信
+	mcp.AddTool(server,
+		&mcp.Tool{
+			Name:        "send_private_message",
+			Description: "给指定用户发一条私信（从对方主页的「发消息」入口进入）。私信是风控最敏感的动作，默认每天最多 5 条、间隔 10 分钟，超额会被拒绝；仅在用户明确要求时使用，不要主动群发。",
+			Annotations: &mcp.ToolAnnotations{
+				Title:           "Send Private Message",
+				DestructiveHint: boolPtr(true),
+			},
+		},
+		withPanicRecovery("send_private_message", func(ctx context.Context, req *mcp.CallToolRequest, args SendPrivateMessageArgs) (*mcp.CallToolResult, any, error) {
+			result := appServer.handleSendPrivateMessage(ctx, args.UserID, args.XsecToken, args.Content)
+			return convertToMCPResult(result), nil, nil
+		}),
+	)
+
+	logrus.Infof("Registered %d MCP tools", 19)
 }
 
 // convertToMCPResult 将自定义的 MCPToolResult 转换为官方 SDK 的格式

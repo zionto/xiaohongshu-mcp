@@ -290,6 +290,24 @@ Favorite a note or unfavorite it, with smart detection of current status to avoi
 
 </details>
 
+<details>
+<summary><b>12. Send Private Message</b></summary>
+
+Send a direct message to a user via the "Message" button on their profile page, with the same humanized delays as commenting.
+
+**Feature Description:**
+
+- Requires user_id, xsec_token and content
+- Verifies in place that the message appears in the conversation; treated as failed otherwise
+
+**⚠️ Important Note:**
+
+- Must login first to use this feature
+- Direct messages are the most risk-control-sensitive action: by default at most 5 per day with a 10-minute gap, extra calls are refused (`XHS_MESSAGE_PER_DAY`, `XHS_MESSAGE_MIN_GAP`)
+- Use only when explicitly asked; never for bulk messaging
+
+</details>
+
 **RedNote Basic Operation Knowledge**
 
 - **Title: (Very Important) RedNote requires titles to not exceed 20 characters**

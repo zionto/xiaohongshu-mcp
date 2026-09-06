@@ -393,6 +393,25 @@ func (s *AppServer) replyNotificationHandler(c *gin.Context) {
 	respondSuccess(c, map[string]any{"data": result}, "回复成功")
 }
 
+// sendPrivateMessageHandler 给指定用户发私信
+func (s *AppServer) sendPrivateMessageHandler(c *gin.Context) {
+	var req SendPrivateMessageRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, "INVALID_REQUEST",
+			"请求参数错误", err.Error())
+		return
+	}
+
+	result, err := s.xiaohongshuService.SendPrivateMessage(c.Request.Context(), req.UserID, req.XsecToken, req.Content)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, "SEND_PRIVATE_MESSAGE_FAILED",
+			"发送私信失败", err.Error())
+		return
+	}
+
+	respondSuccess(c, result, result.Message)
+}
+
 // likeNotificationHandler 给通知里的评论点赞/取消点赞
 func (s *AppServer) likeNotificationHandler(c *gin.Context) {
 	var req LikeNotificationRequest
